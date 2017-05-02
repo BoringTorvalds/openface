@@ -258,14 +258,10 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
         rgbFrame[:, :, 2] = buf[:, :, 0]
 
         if not self.training:
-            annotatedFrame = np.copy(buf)
+            annotatedFrame = np.ones((300,400,3), dtype=np.uint8)
 
-        # cv2.imshow('frame', rgbFrame)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     return
 
         identities = []
-        # bbs = align.getAllFaceBoundingBoxes(rgbFrame)
         bb = align.getLargestFaceBoundingBox(rgbFrame)
         bbs = [bb] if bb is not None else []
         for bb in bbs:
@@ -313,9 +309,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             if not self.training:
                 bl = (bb.left(), bb.bottom())
                 tr = (bb.right(), bb.top())
-                cv2.rectangle(annotatedFrame, bl, tr, color=(153, 255, 204),
-                              thickness=3)
-                for p in openface.AlignDlib.OUTER_EYES_AND_NOSE:
+                for p in range(len(landmarks)):
                     cv2.circle(annotatedFrame, center=landmarks[p], radius=3,
                                color=(102, 204, 255), thickness=-1)
                 if identity == -1:
@@ -325,9 +319,9 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                         name = "Unknown"
                 else:
                     name = self.people[identity]
-                cv2.putText(annotatedFrame, name, (bb.left(), bb.top() - 10),
+                cv2.putText(annotatedFrame, "Hi " + name, (bb.left(), bb.top() - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.75,
-                            color=(152, 255, 204), thickness=2)
+                            color=(102, 204, 255), thickness=-2)
 
         if not self.training:
             msg = {
@@ -342,7 +336,8 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             plt.yticks([])
 
             imgdata = StringIO.StringIO()
-            plt.savefig(imgdata, format='png')
+
+            fig.savefig(imgdata, bbox_inches='tight', pad_inches=0, format='png')
             imgdata.seek(0)
             content = 'data:image/png;base64,' + \
                 urllib.quote(base64.b64encode(imgdata.buf))
