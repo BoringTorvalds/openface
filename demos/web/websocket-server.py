@@ -203,7 +203,9 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
 
         # print(yVals)
 
-        plt.figure()
+        plt.figure(frameon=False)
+	plt.fill_between([0,1],[0,1], color="none", hatch="X", edgecolor="b", linewidth=0.0)
+
         for c, i in zip(colors, yVals):
             name = "Unknown" if i == -1 else people[i]
             plt.scatter(X_r[y == i, 0], X_r[y == i, 1], c=c, label=name)
@@ -259,11 +261,17 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
 
         if not self.training:
             annotatedFrame = np.ones((300,400,3), dtype=np.uint8)
+	    #annotatedFrame = np.copy(buf)
 
+        # cv2.imshow('frame', rgbFrame)
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     return
 
         identities = []
+        # bbs = align.getAllFaceBoundingBoxes(rgbFrame)
         bb = align.getLargestFaceBoundingBox(rgbFrame)
         bbs = [bb] if bb is not None else []
+        landmarks = []
         for bb in bbs:
             # print(len(bbs))
             landmarks = align.findLandmarks(rgbFrame, bb)
@@ -309,19 +317,29 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             if not self.training:
                 bl = (bb.left(), bb.bottom())
                 tr = (bb.right(), bb.top())
-                for p in range(len(landmarks)):
-                    cv2.circle(annotatedFrame, center=landmarks[p], radius=3,
-                               color=(102, 204, 255), thickness=-1)
+                #for p in openface.AlignDlib.INNER_EYES_AND_BOTTOM_LIP:
+		for p in range(len(landmarks)-1):
+                    #cv2.circle(annotatedFrame, center=landmarks[p], radius=3,
+                              # color=(102, 204, 255), thickness=-1)
+		     cv2.line(annotatedFrame, landmarks[p],landmarks[p+1],(248,231,28), thickness=1)
+                eyes0 = [range(0,5),range(17,31)]
+		eyes1 = range(37,42)
+		for r in eyes0:
+	        	for p in range(len(r)-1):
+				for e in eyes1:
+					cv2.line(annotatedFrame, landmarks[p], landmarks[p+1],(248,231,28),thickness=1)
+					cv2.line(annotatedFrame, landmarks[e], landmarks[p+1],(248,231,28),thickness=1)
+					cv2.line(annotatedFrame, landmarks[p], landmarks[e],(248,231,28),thickness=1)
+				
+				
+
                 if identity == -1:
-                    if len(self.people) == 1:
-                        name = self.people[0]
-                    else:
-                        name = "Unknown"
+                    name = "Unknown"
                 else:
                     name = self.people[identity]
-                cv2.putText(annotatedFrame, "Hi " + name, (bb.left(), bb.top() - 10),
+                cv2.putText(annotatedFrame, "Hi, " + name, (bb.left(), bb.top() - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.75,
-                            color=(102, 204, 255), thickness=-2)
+                            color=(102, 204, 255), thickness=2)
 
         if not self.training:
             msg = {
@@ -330,20 +348,21 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             }
             self.sendMessage(json.dumps(msg))
 
-            plt.figure()
-            plt.imshow(annotatedFrame)
-            plt.xticks([])
-            plt.yticks([])
+            #plt.figure(frameon=False)
+            #plt.imshow(annotatedFrame)
 
-            imgdata = StringIO.StringIO()
+            #plt.xticks([])
+            #plt.yticks([])
 
-            fig.savefig(imgdata, bbox_inches='tight', pad_inches=0, format='png')
-            imgdata.seek(0)
-            content = 'data:image/png;base64,' + \
-                urllib.quote(base64.b64encode(imgdata.buf))
+            #imgdata = StringIO.StringIO()
+	    #plt.savefig(imgdata, bbox_inches='tight', pad_inches=0, format='png')
+		#plt.savefig(imgdata, format='png')
+            #imgdata.seek(0)
+	    content = ""
             msg = {
                 "type": "ANNOTATED",
-                "content": content
+                "content": content,
+		"landmarks": landmarks
             }
             plt.close()
             self.sendMessage(json.dumps(msg))
